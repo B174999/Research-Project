@@ -1,1 +1,433 @@
+# Note: This script requires dataframes from other scripts in Global Environment
+# Thus, this script should be run last
+
+
+##################################################################################################
+
+### COMBINING ALL DATA
+# Combine bin, GC content, Gene Count, and counts of each TE into one tibble
+# Use left join function instead of inner join
+# Left_join(x,y)
+
+
+
+# create dataframe with bin, GC_content, Gene density and count of all types
+final_dataframe <- tibble(Bin = character(), GC_content = integer(), Gene_density = integer(),
+                          DNA = integer(), LINE = integer(), LTR = integer(), 
+                          PLE = integer(), RC = integer(), 
+                          SINE = integer(), Unknown = integer())
+
+# dataframe with just TE types 
+# using repeat counts from our first script 
+type_dataframe <- tibble(bin_name = bins,
+                         DNA = DNA_counted$Total,
+                         LINE = LINE_counted$Total,
+                         LTR = LTR_counted$Total,
+                         PLE = PLE_counted$Total,
+                         RC = RC_counted$Total,
+                         SINE = SINE_counted$Total,
+                         Unknown = Unknown_counted$Total)
+
+# feed type_dataframe into tibble with GC content
+final_dataframe <- tibble(bin_name = bins,
+                          GC_content = GC_content$GC_content,
+                          Gene = GENE_counted$Count,
+                          DNA = DNA_counted$Total,
+                          LINE = LINE_counted$Total,
+                          LTR = LTR_counted$Total,
+                          PLE = PLE_counted$Total,
+                          RC = RC_counted$Total,
+                          SINE = SINE_counted$Total,
+                          Unknown = Unknown_counted$Total)
+
+
+# PLOTTING
+# (1) GC content against repeat density
+# Make our data table longer for plotting
+GC_counts <- final_dataframe %>%
+  dplyr::select(bin_name, GC_content, DNA, LINE, LTR, PLE,
+                RC, SINE, Unknown) %>%
+  pivot_longer(!c(GC_content,bin_name), names_to = 'type', values_to = 'count') 
+# Plot our data 
+GC_content_repeat_plot <- ggplot(
+  data = GC_counts, 
+  mapping = aes(x = GC_content, y = count, col = type)) +
+  geom_point(color = 'black', size = 0.1) + 
+  labs(x = "GC content", y = "Repeat Density", col = 'Repeat Type') +
+  scale_color_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE', 'Unknown')) + 
+  stat_smooth(method = 'lm') +
+  theme_bw(base_size = 12) +
+  facet_wrap(~type, scales = "free_y") 
+# Fix legend and size of text
+GC_content_repeat_plot <- GC_content_repeat_plot +
+  theme(legend.background = element_rect(fill="white",size=0.5, linetype="solid", colour ="darkgrey")) +
+  theme(legend.title = element_text(colour="black", size=15, face="bold")) +
+  theme(text = element_text(size=20))
+GC_content_repeat_plot 
+
+
+#### (2) Gene density against repeat density
+# Make data table longer for gene count
+gene_counts <- final_dataframe %>%
+  dplyr::select(bin_name, Gene, DNA, LINE, LTR, PLE,
+                RC, SINE, Unknown) %>%
+  pivot_longer(!c(bin_name,Gene), names_to = 'type', values_to = 'count') 
+# Plot our data
+gene_count_plot <- ggplot(
+  data = gene_counts, 
+  mapping = aes(x = Gene, y = count, col = type)) +
+  geom_point(color = 'black', size = 0.1) +
+  labs(x = "Gene Density", y = "Repeat Density", col = 'Repeat Type') +
+  scale_color_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE', 'Unknown')) +
+  stat_smooth(method = 'lm') + 
+  theme_bw(base_size = 12)+
+  facet_wrap(~type, scales = "free_y") 
+# Fix legend and size of text
+gene_count_plot <- gene_count_plot +
+  theme(legend.background = element_rect(fill="white",size=0.5, linetype="solid", colour ="darkgrey")) +
+  theme(legend.title = element_text(colour="black", size=15, face="bold")) + 
+  theme(text = element_text(size=20)) + labs(col = 'Repeat Type')
+gene_count_plot
+
+
+
+######################################################################################################
+
+# STATISTICS
+
+# LINEAR REGRESSION MODELS
+# (1) test significance of interaction between gene count and GC content 
+# create dataframe of Gene Count and GC content and run linear regression
+gene_gc_dataframe <- GENE_counted %>%
+  left_join(GC_content) %>%
+  select(bin_name, GC_content, Count)
+gene_density_model <- lm(Count ~ GC_content, gene_gc_dataframe)
+summary(gene_density_model) # non-significant
+# plot interaction between Count and GC content
+gene_density_plot <- ggplot(gene_density_model, aes(x = GC_content, y = Count)) +
+  geom_point() + 
+  stat_smooth(method = 'lm', col='maroon1')
+gene_density_plot <- gene_density_plot + geom_point() + xlab('GC Content') +
+  ylab('Gene Count') + theme_classic() + theme(text = element_text(size=30))
+gene_density_plot
+
+# (2) test significance of interaction between gene percentage and GC content 
+#  gene count does not account for varying gene sizes
+
+# First plot the distribution of varying gene length in Icerya purchasi
+gene_gff_tbl_length <- genes_gff %>%
+  as_tibble() %>%
+  dplyr::rename(gene_start = start, gene_end = end) %>%
+  mutate(gene_length = gene_end - gene_start) 
+# edit chromosome names for plotting 
+gene_gff_tbl_length <- gene_gff_tbl_length %>%
+  mutate(seqnames = sub('OX731680.1','Chromosome 1', seqnames)) %>%
+  mutate(seqnames = sub('OX731681.1','Chromosome 2', seqnames))
+gene_length_plot <- ggplot(data = gene_gff_tbl_length, mapping = aes(x = gene_length, col = seqnames))+ 
+  geom_density() +
+  scale_x_continuous(trans = "log10") + xlab('Gene Length') +
+  ylab('Density') + theme_classic() +
+  labs(col = "")
+gene_length_plot
+
+# Then run linear regression of gene percentage against GC content
+gene_percentage_dataframe <- gene_gff_tbl_binned_corrected %>%
+  left_join(GC_content) %>%
+  select(bin_name, GC_content, percentage)
+gene_percentage_model <- lm(percentage ~ GC_content, gene_percentage_dataframe)
+summary(gene_percentage_model) #significant
+# plot interaction between Count and GC content
+gene_percentage_plot <- ggplot(gene_percentage_model, aes(x = GC_content, y = percentage)) +
+  geom_point() + 
+  stat_smooth(method = 'lm', col='violet')
+gene_percentage_plot <- gene_percentage_plot + geom_point() + xlab('GC Content') +
+  ylab('Gene Percentage') + theme_classic() + theme(text = element_text(size=30))
+gene_percentage_plot
+
+
+#### GENERALISED LINEAR MODEL 
+
+# combine gene count and type count together into one dataframe for analysis
+# convert bin and type as factors
+# convert Gene, GC content, and count as numeric.
+combined_counts <- gene_counts %>%
+  inner_join(GC_counts) %>%
+  dplyr::select(bin_name, GC_content, Gene, count, type) %>%
+  mutate(bin_name = sub('OX731680.','', bin_name)) %>%
+  mutate(bin_name = sub('1_', '', bin_name)) %>%
+  mutate(bin_name = as.factor(bin_name), Gene = as.numeric(Gene), type = as.factor(type)) %>%
+  mutate(GC_content = as.numeric(GC_content), count = as.numeric(count))
+# change tibble to table
+combined_counts <-as.data.frame(combined_counts)
+# our generalised linear model
+str(combined_counts) # check we have converted our variables correctly to numeric and/or factor
+fixed_model <- lmer(count ~ type + Gene + GC_content + Gene:type + GC_content:type + (1|bin_name), data = combined_counts)
+summary(fixed_model)
+
+
+
+
+###############################################################################################################
+
+
+# LOCATING GENE REGIONS
+
+
+# GET GENE RANGES
+genes_gff <- gene_gff %>%
+  filter(type == "gene") %>%
+  as_tibble() %>%
+  mutate(gene_number = row_number()) %>%
+  as_granges()
+
+# Get upstream ranges
+upstream_ranges <- genes_gff %>%
+  as_tibble() %>%
+  mutate(upstream_start = ifelse(strand == "+", start - 2001, end +1),
+         upstream_end = ifelse(strand == "+", start - 1, end + 2001)) %>%
+  dplyr::select(seqnames, upstream_start, upstream_end, strand, ID, gene_number) %>%
+  dplyr::rename(start = upstream_start, end = upstream_end) %>%
+  dplyr::arrange(seqnames, start) %>%
+  as_granges()
+# merge overlapping ranges 
+# for genes 
+genes_ranges_reduced <- reduce_ranges_directed(genes_gff)
+# for upstream 
+upstream_ranges_reduced <- reduce_ranges_directed(upstream_ranges)
+
+# Following function fits the upstream section to correct range size
+# by removing where it overlaps upstream genes so we get true range of upstream region
+# First split into each strand
+# (a) for genes
+genes_ranges_reduced_fwd <- genes_ranges_reduced %>%
+  filter(strand == "+")
+
+genes_ranges_reduced_rev <- genes_ranges_reduced %>%
+  filter(strand == "-")
+# (b) for upstream
+upstream_ranges_reduced_fwd <- upstream_ranges_reduced %>%
+  filter(strand == "+")
+
+upstream_ranges_reduced_rev <- upstream_ranges_reduced %>%
+  filter(strand == "-")
+# Perform subtract function (taking away gene regions that overlap upstream region) on each strand
+upstream_subtract_fwd <- subtract(upstream_ranges_reduced_fwd, genes_ranges_reduced_fwd) |>
+  unlist()
+upstream_subtract_rev <- subtract(upstream_ranges_reduced_rev, genes_ranges_reduced_rev) |>
+  unlist()
+# Join and fix end coordinates
+upstream_subtract <- c(upstream_subtract_fwd, upstream_subtract_rev) %>%
+  as_tibble() %>%
+  mutate(seqnames = as.character(seqnames)) %>%
+  inner_join(genome_index) %>%
+  mutate(start = ifelse(start < 1, 1, start),
+         end = ifelse(end > contig_width, contig_width, end)) %>%
+  dplyr::select(-width, -contig_width) %>%
+  arrange(seqnames, start) %>%
+  as_granges()
+
+# join genes to nearest upstream
+# output is our flanking regions of the upstream of genes
+nearest_upstream <- join_nearest_downstream(upstream_subtract, genes_gff) %>%
+  as_tibble() %>% 
+  mutate(gene_type = type, gene_ID = ID) %>%
+  dplyr::select(seqnames, start, end, width, strand, gene_type, gene_ID, Grandparent, gene_number) %>%
+  as_granges()
+
+
+
+###############################################################################################################
+
+# LOCATING REPEATS WITHIN GENOME REGIONS
+
+# GET REPEAT RANGES
+repeat_ranges <- eg_gff_known %>%
+  as_tibble() %>%
+  mutate(repeat_type = type, repeat_ID = ID) %>%
+  dplyr::select(seqnames, start, end, width, strand, repeat_type, TSTART, TEND, repeat_ID, KIMURA80, repeat_number) %>%
+  as_granges()
+
+# Create tibble containing both the repeat ranges and upstream ranges
+# create tibble of just the repeat ranges
+repeat_ranges_coord <- repeat_ranges %>%
+  as_tibble() %>%
+  dplyr::select(seqnames, start, end, repeat_type, KIMURA80, repeat_number) %>%
+  rename(repeat_start = start, repeat_end = end) %>%
+  as_tibble() 
+# create tibble of just the upstream ranges
+upstream_ranges_coord <- upstream_ranges %>%
+  as_tibble() %>% 
+  dplyr::select(seqnames, start, end, ID) %>%
+  rename(upstream_start = start, upstream_end = end) %>%
+  as_tibble()
+# merge overlapping genes with repeats 
+overlapping_ranges1 <- plyranges::join_overlap_inner(repeat_ranges, nearest_upstream) %>%
+  mutate(class = sub(pattern = '/.*', replacement = '', x = repeat_type)) 
+# reverse this function
+overlapping_ranges2 <- plyranges::join_overlap_inner(nearest_upstream, repeat_ranges) %>%
+  mutate(class = sub(pattern = '/.*', replacement = '', x = repeat_type))
+
+
+# combine both overlapping regions into one dataframe
+# First select specific columns of necessary information on genes and repeats
+# eg, gene_ID, repeat_type etc...
+overlapping_ranges1_selected <- overlapping_ranges1 %>%
+  as_tibble() %>%
+  rename(repeat_start = start, repeat_end = end) %>%
+  mutate(join = paste0(repeat_number, '___', gene_number)) %>%
+  dplyr::select(seqnames, repeat_start, repeat_end, repeat_type, repeat_number, join)
+
+overlapping_ranges2_selected <- overlapping_ranges2 %>%
+  as_tibble() %>%
+  rename(gene_start = start, gene_end = end) %>%
+  mutate(join = paste0(repeat_number, '___', gene_number)) %>%
+  dplyr::select(gene_start, gene_end, gene_ID, gene_number, join) 
+
+# join overlapping regions into one tibble
+# so we can map whether genes are within repeats or repeats are within genes 
+overlapping_table <- inner_join(overlapping_ranges1_selected, overlapping_ranges2_selected, by = join_by(join))
+
+
+####################################################################
+
+# ESTIMATING GENOMIC REGIONS
+
+# (1) first we will get ranges of three different regions: exons, introns and upstream
+# (2) plot K80 divergence of repeats within these regions
+# (3) we will then estimate whether recent insertions (K80 distance of <= 0.03) are within these regions
+
+# First define recent insertions
+recent_insertions <- divergence_eg_gff %>%
+  as_tibble() %>%
+  dplyr::select(seqnames, start, end, width, type, KIMURA80) %>%
+  as_granges() %>%
+  filter(KIMURA80 <=0.03) 
+
+###### Get EXON ranges
+exon_intersect <- plyranges::join_overlap_intersect(x = exons_gff, y = repeat_ranges) %>%
+  as_tibble() %>%
+  mutate(Exon_ID = gsub('.t.*', '', ID)) %>% 
+  dplyr::select(seqnames, start, end, width, Exon_ID, repeat_type, KIMURA80) %>%
+  as_granges()
+# check total number of insertions that lie within exons
+nrow(as_tibble(exon_intersect))#3526
+# Plot divergence
+exon_intersect <- exon_intersect %>%
+  mutate(KIMURA80 = round(as.double(KIMURA80), 2)) %>%
+  mutate(class = sub(pattern = '/.*', replacement = '', x = repeat_type))
+exon_divergence_plot <- ggplot(as_tibble(exon_intersect), aes(KIMURA80, fill = class)) + 
+  labs(fill = 'Repeat Type') + 
+  scale_fill_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE', 'Unknown')) +
+  geom_bar(colour = 'black', binwidth = 0.01, width = 0.01) +
+  scale_y_continuous(name = 'Number of basepairs', limits = c(0, 20000)) + scale_x_continuous(name = "Kimura 2-Parameter Distance") + theme_classic() + 
+  theme(text = element_text(size=25))
+exon_divergence_plot
+# Check how many recent insertions lie within exon region
+recent_exon_insertions <- exon_intersect %>%
+  filter(KIMURA80 <= 0.03) %>%
+  as_tibble()
+nrow(recent_exon_insertions)#1252
+
+###### Get INTRON ranges
+intron_intersect <- plyranges::join_overlap_intersect(x = introns_gff, y = repeat_ranges) %>%
+  as_tibble() %>%
+  mutate(Intron_ID = gsub('.t.*', '', ID)) %>% 
+  dplyr::select(seqnames, start, end, width, Intron_ID, repeat_type, KIMURA80) %>%
+  as_granges()
+# Check total number of insertions that lie within upstream regions
+nrow(as_tibble(intron_intersect))#285805
+# Plot divergence
+intron_intersect <- intron_intersect %>%
+  mutate(KIMURA80 = round(as.double(KIMURA80), 2)) %>%
+  mutate(class = sub(pattern = '/.*', replacement = '', x = repeat_type))
+intron_divergence_plot <- ggplot(as_tibble(intron_intersect), aes(KIMURA80, fill = class)) +
+  labs(fill = 'Repeat Type') + 
+  scale_fill_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE', 'Unknown')) +
+  geom_bar(colour = 'black', binwidth = 0.01, width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs", limits = c(0, 20000)) + scale_x_continuous(name = "Kimura 2-Parameter Distance") + theme_classic() +
+  theme(text = element_text(size=25))
+intron_divergence_plot
+# Check how many recent insertions lie within intron region
+recent_intron_insertions <- intron_intersect %>%
+  filter(KIMURA80 <= 0.03) %>%
+  as_tibble()
+nrow(recent_intron_insertions)#285805
+
+###### Get UPSTREAM ranges
+# Where repeats overlap in UPSTREAM REGIONS
+# Overlapping and K2P plot
+upstream_repeat_intersect <- plyranges::join_overlap_inner(nearest_upstream, repeat_ranges) %>%
+  mutate(KIMURA80 = round(as.double(KIMURA80), 2)) %>%
+  mutate(class = sub(pattern = '/.*', replacement = '', x = repeat_type))
+# Check total number of insertions that lie within upstream regions
+nrow(as_tibble(upstream_repeat_intersect))#22418
+# K2P plot of upstream repeats 
+kimura_upstream_plot <- ggplot(as_tibble(upstream_repeat_intersect), aes(KIMURA80, fill = class)) +
+  labs(fill = 'Repeat Type') + 
+  scale_fill_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE', 'Unknown')) +
+  geom_bar(colour = 'black', binwidth = 0.01, width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs", limits = c(0, 20000)) + scale_x_continuous(name = "Kimura 2-Parameter Distance") + theme_classic() +
+  theme(text = element_text(size=25))
+kimura_upstream_plot
+# Check how many recent insertions lie within upstream region
+recent_upstream_insertions <- upstream_repeat_intersect %>%
+  filter(KIMURA80 <= 0.03) %>%
+  as_tibble()
+nrow(recent_upstream_insertions)#2735
+
+
+
+####################################################################
+
+#### LOCATING RECENT INSERTIONS
+
+# within exons
+exons_divergence_intersect <- plyranges::join_overlap_intersect(x = exons_gff, y = recent_insertions) %>%
+  as_tibble() %>%
+  mutate(repeat_type = type.y, Exon_ID = gsub('.t.*', '', ID)) %>% 
+  dplyr::select(seqnames, start, end, width, Exon_ID, repeat_type, KIMURA80) %>%
+  as_granges()
+# Plot divergence
+exons_divergence_intersect <- exons_divergence_intersect %>%
+  mutate(KIMURA80 = round(as.double(KIMURA80), 2)) %>%
+  mutate(class = sub(pattern = '/.*', replacement = '', x = repeat_type))
+
+# within introns
+introns_divergence_intersect <- plyranges::join_overlap_intersect(x = introns_gff, y = recent_insertions) %>%
+  as_tibble() %>%
+  mutate(repeat_type = type.y, Intron_ID = gsub('.t.*', '', ID)) %>%
+  dplyr::select(seqnames, start, end, width, Intron_ID, repeat_type, KIMURA80) %>%
+  as_granges()
+
+# within upstream regions
+upstream_divergence_intersect <- plyranges::join_overlap_intersect(x=nearest_upstream, y = recent_insertions)
+
+
+####################################################################
+
+# LOCATING OLDER INSERTIONS
+
+# First define old insertions
+old_insertions <- divergence_eg_gff %>%
+  as_tibble() %>%
+  dplyr::select(seqnames, start, end, width, type, KIMURA80) %>%
+  as_granges() %>%
+  filter(KIMURA80 >0.03) 
+
+# within exons
+old_exons_divergence_intersect <- plyranges::join_overlap_intersect(x = exons_gff, y = old_insertions) %>%
+  as_tibble() %>%
+  mutate(repeat_type = type.y, Exon_ID = gsub('.t.*', '', ID)) %>% 
+  dplyr::select(seqnames, start, end, width, Exon_ID, repeat_type, KIMURA80) %>%
+  as_granges()
+
+# within introns
+old_introns_divergence_intersect <- plyranges::join_overlap_intersect(x = introns_gff, y = old_insertions) %>%
+  as_tibble() %>%
+  mutate(repeat_type = type.y, Intron_ID = gsub('.t.*', '', ID)) %>%
+  dplyr::select(seqnames, start, end, width, Intron_ID, repeat_type, KIMURA80) %>%
+  as_granges()
+
+# within upstream regions
+old_upstream_divergence_intersect <- plyranges::join_overlap_intersect(x=nearest_upstream, y = old_insertions)
 
