@@ -1,1 +1,214 @@
+# load required packages
+library(tidyverse)
+library(plyranges)
+library(ggplot2)
+library(Biostrings)
+library(dplyr)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("BSgenome")
 
+# Load in our data
+# repeat information from EarlGrey including divergence estimates
+divergence_eg_gff <- read_gff("data/icerya_purchasi.filteredRepeats.divergence.gff") %>%
+  mutate(KIMURA80 = as.double(KIMURA80),
+         PIDENT = as.double(PIDENT),
+         ALN_LEN = as.double(ALN_LEN),
+         JUKESCANTOR69 = as.double(JUKESCANTOR69)) %>%
+  mutate(type = as.character(type)) %>%
+  mutate(type = sub("-.*", "", type)) %>%
+  filter(!is.na(KIMURA80))
+# Correct the subfamily 'Penelope' (within PLE) that is miscategorised as LINE by RepeatMasker
+# Rename Penelope to move to group PLE 
+eg_gff <- eg_gff_tbl %>%
+  mutate(type = sub('LINE/Penelope','PLE/Penelope', type))
+# Remove '/' from repeat names
+divergence_eg_tes_gff <- divergence_eg_gff %>%
+  dplyr::mutate(type = sub("/.*", "", type))
+
+
+##################################################################################################
+
+###  PLOTTING DIVERGENCE
+
+# This function filters estimates of divergence
+# There are three estimates in this file: kimura, pident and jukescantor
+divergence_eg_tes_rounded_for_plot  <- divergence_eg_tes_gff %>%
+  as_tibble() %>%
+  dplyr::mutate(KIMURA80 = round(x = KIMURA80, digits = 2)) %>%
+  group_by(type, KIMURA80) %>%
+  mutate(KIMURA_SUM = sum(width)) %>%
+  ungroup() %>%
+  group_by(type, JUKESCANTOR69) %>%
+  mutate(JUKESCANTOR_SUM = sum(width)) %>%
+  ungroup() %>%
+  group_by(type, PIDENT) %>%
+  mutate(PIDENT_SUM = sum(width)) %>%
+  ungroup()
+
+# We will be using K80 plot from this data, as this is most commonly used in the TE community
+# Isolate Kimura data 
+divergence_eg_tes_rounded_for_plot  <- divergence_eg_tes_gff %>%
+  as_tibble() %>%
+  dplyr::mutate(KIMURA80 = round(x = KIMURA80, digits = 2)) %>% # Round up K2P to 2 decimal places
+  group_by(type, KIMURA80) %>% # group by repeat class and kimura distance
+  mutate(KIMURA_SUM = sum(width)) %>% # calculate total basepairs at each divergence for each repeat type
+  ungroup() %>%
+  base::unique() %>% # remove duplicate entries
+  arrange(type, KIMURA80) # sort data
+# Select the important data for plotting (repeat type, kimura distance, basepairs at divergence)
+divergence_eg_tes_rounded_for_kimura_plot <- divergence_eg_tes_rounded_for_plot %>%
+  dplyr::select(type, KIMURA80, KIMURA_SUM) %>% 
+  base::unique() 
+
+# Plot our data
+kimura_plot <- ggplot(divergence_eg_tes_rounded_for_kimura_plot[divergence_eg_tes_rounded_for_kimura_plot$type != "Unknown",],
+                      aes(x = KIMURA80, y = KIMURA_SUM, fill = type)) +
+  labs(fill = 'Repeat Type') + 
+  scale_fill_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE', 'Unknown')) +
+  geom_histogram(color = 'black', stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(limits = c(-10, 5.1e7), expand = c(0,0), name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") + theme_classic() +
+  theme(text = element_text(size=25))
+kimura_plot
+
+# Split up this plot 
+# to visualise divergence of each repeat type contained in this plot individually 
+kimura_split_plot <- ggplot(divergence_eg_tes_rounded_for_kimura_plot[divergence_eg_tes_rounded_for_kimura_plot$type != "Unknown",],
+                            aes(x = KIMURA80, y = KIMURA_SUM, fill = type)) +
+  labs(fill = 'Repeat Type') + 
+  scale_fill_discrete(labels = c('DNA transposons', 'LINE', 'LTR', 'PLE','RC', 'SINE')) +
+  geom_histogram(color = 'black', stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") + theme_bw() + 
+  theme(text = element_text(size=18)) + facet_wrap(~type, ncol = 1, scales = "free_y")
+
+kimura_split_plot
+
+###  Plot subfamilies 
+divergence_eg_families_for_plot <- divergence_eg_gff %>%
+  as_tibble() %>%
+  tidyr::separate(type, into = c("subclass", "family")) %>% # seperate repeat type/subclass and superfamily
+  dplyr::mutate(KIMURA80 = round(x = KIMURA80, digits = 2), # Round up K2P to 2 decimal places
+                family = ifelse(is.na(family), "Other", family)) %>% 
+  group_by(family, KIMURA80) %>% # group by repeat superfamily and kimura distance
+  mutate(KIMURA_SUM = sum(width)) %>% # calculate total basepairs at each divergence for each repeat type
+  ungroup() %>%
+  dplyr::select(seqnames, subclass, family, KIMURA80, KIMURA_SUM) %>% # selct the important data for plotting (repeat type, repeat_family, kimura distance, basepairs at divergence)
+  base::unique() %>% # remove duplicate entries
+  arrange(subclass, family, KIMURA80) # sort data
+
+# (1) Filter for DNA
+kimura_DNA_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "DNA",], # here's where you filter for repeat subclass
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  labs(fill = 'Subfamily') + 
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_DNA_plot
+
+# (2) Filter for LINE
+kimura_LINE_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "LINE",],
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  labs(fill = 'Subfamily') + 
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_LINE_plot
+
+# (3) Filter for LTR
+kimura_LTR_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "LTR",], 
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  labs(fill = 'Subfamily') + 
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_LTR_plot
+
+# (4) Filter for PLE
+kimura_PLE_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "PLE",],
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  labs(fill = 'Subfamily') + 
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_PLE_plot
+
+
+# (5) Filter for RC
+kimura_RC_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "RC",], 
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  labs(fill = 'Subfamily') + 
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_RC_plot
+
+# (6) Filter for SINE
+kimura_SINE_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "SINE",], 
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  labs(fill = 'Subfamily') + 
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_SINE_plot
+
+# (7) Filter for Unknown
+kimura_Unknown_plot <-
+  ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "Unknown",], 
+         aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
+  labs(fill = 'Subfamily') + 
+  geom_histogram(stat = "identity", position = "stack", width = 0.01) +
+  scale_y_continuous(name = "Number of basepairs") +
+  scale_x_continuous(limits = c(-0.01, 0.51),
+                     expand = c(0,0), name = "Kimura 2-Parameter Distance") +
+  theme_bw() +
+  facet_wrap(~family, ncol = 2)
+
+kimura_Unknown_plot
+
+
+
+##################################################################################################
+
+####### ESTIMATING MOST RECENT INSERTIONS 
+
+# selecting recent insertions (Kimura distance of 0.03)
+
+recent_insertions <- divergence_eg_gff %>%
+  as_tibble() %>%
+  dplyr::select(seqnames, start, end, width, type, KIMURA80) %>%
+  as_granges() %>%
+  filter(KIMURA80 <=0.03) 
