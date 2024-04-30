@@ -13,3 +13,7 @@ This script takes and plots the estimations of K2P distance of repeat elements.
 
 ### Locating Repeats in Gene Regions 
 This script determines where repeats lie within genomic regions. 
+
+
+
+
