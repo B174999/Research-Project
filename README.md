@@ -6,7 +6,7 @@ My project investigates Androdioecy and characterisation of repeat elements cont
 # Annotation Resources
 1. **EarlGrey** is a Transposable Elements (TE) annotation pipeline which I used to identify, curate and annotate TEs across the whole genome assembly of I. _purchasi_, available at: https://github.com/TobyBaril/EarlGrey. The EarlGrey add-on '_EarGreyDivergenceCalc_' was included to estimate the divergence of repeats (quantified as the Kimura80 distance). 
      
-2. **AUGUSTUS** is a gene prediction programme which I used to classify genes and genomic across the whole genome assembly of I. _purchasi_.
+2. **AUGUSTUS** is a gene prediction programme which I used to classify genes and genomic regions across the whole genome assembly of I. _purchasi_.
   
 # R scripts
 #### The following scripts are accessible in the file folders at the top of this page.  
