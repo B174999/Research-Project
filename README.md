@@ -1,4 +1,4 @@
-![Image the University of Edinburgh logo.](https://www.logo.wine/a/logo/University_of_Edinburgh/University_of_Edinburgh-Logo.wine.svg)
+![Image the University of Edinburgh logo.](https://www.ed.ac.uk/sites/all/themes/uoe/assets/logo.png)
 # Honours Research Project 
 This page contains all custom script created in `R` for my Genetics Honours Project. This script was used to annotate repeat elements and genic content across the whole-genome assembly of the Cottony Cushion Scale Insect, _Icerya purchasi_. 
 # Contents
