@@ -1,6 +1,7 @@
 # Research-Project
 This page contains all custom script created for my undergraduate Genetics Honours Project in Rstudio.      
 
+![Image the University of Edinburgh logo.](https://i1.rgstatic.net/ii/institution.image/AS%3A267455312662528%401440777723030_l)
       
 
 ## 'EarlGrey' Transposable Element Annotation
