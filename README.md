@@ -9,7 +9,7 @@ My project investigates Androdioecy and characterisation of repeat elements cont
 2. **AUGUSTUS** is a gene prediction programme which I used to classify genes and genomic across the whole genome assembly of I. _purchasi_.
   
 # R scripts
-#### The following `R`scripts are accessible in the file folders at the top of this page.  
+#### The following scripts are accessible in the file folders at the top of this page.  
 ## '<ins>Transposable Element Annotation</ins>' R script
 This `R` script takes the gff output from EarlGrey, and annotates repeat content across genomic bins of 100 kb. Estimations of GC content is also contained within this script. 
 
