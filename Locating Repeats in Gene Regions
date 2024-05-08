@@ -1,34 +1,15 @@
-# Note: This script requires dataframes from other scripts in Global Environment
-# Thus, this script should be run last
+# load required package
+library(lme4)
 
-
-##################################################################################################
-
-### COMBINING ALL DATA
-# Combine bin, GC content, Gene Count, and counts of each TE into one tibble
-# Use left join function instead of inner join
-# Left_join(x,y)
-
-
-
-# create dataframe with bin, GC_content, Gene density and count of all types
+# combine all our data into one dataframe:
+# bin, GC content, Gene count and counts of each TE type into one tibble
 final_dataframe <- tibble(Bin = character(), GC_content = integer(), Gene_density = integer(),
                           DNA = integer(), LINE = integer(), LTR = integer(), 
                           PLE = integer(), RC = integer(), 
                           SINE = integer(), Unknown = integer())
 
-# dataframe with just TE types 
+# first create dataframe with just TE types which we will join to GC
 # using repeat counts from our first script 
-type_dataframe <- tibble(bin_name = bins,
-                         DNA = DNA_counted$Total,
-                         LINE = LINE_counted$Total,
-                         LTR = LTR_counted$Total,
-                         PLE = PLE_counted$Total,
-                         RC = RC_counted$Total,
-                         SINE = SINE_counted$Total,
-                         Unknown = Unknown_counted$Total)
-
-# feed type_dataframe into tibble with GC content
 final_dataframe <- tibble(bin_name = bins,
                           GC_content = GC_content$GC_content,
                           Gene = GENE_counted$Count,
@@ -158,11 +139,12 @@ combined_counts <- gene_counts %>%
   mutate(bin_name = as.factor(bin_name), Gene = as.numeric(Gene), type = as.factor(type)) %>%
   mutate(GC_content = as.numeric(GC_content), count = as.numeric(count))
 # change tibble to table
-combined_counts <-as.data.frame(combined_counts)
+combined_counts <- as.data.frame(combined_counts)
 # our generalised linear model
 str(combined_counts) # check we have converted our variables correctly to numeric and/or factor
 fixed_model <- lmer(count ~ type + Gene + GC_content + Gene:type + GC_content:type + (1|bin_name), data = combined_counts)
 summary(fixed_model)
+anova(fixed_model)
 
 
 
