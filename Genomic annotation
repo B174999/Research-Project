@@ -35,6 +35,9 @@ gene_gff <- read_gff('data/Icerya_purchasi_DTOL_augustus.hints.gff3') %>%
   mutate(Grandparent = gsub('\\..*',"", ID)) 
 # Convert our data into tibble for data manipulation
 gene_gff_tbl <- as_tibble(gene_gff)
+# Select columns we want to interpret
+gene_gff_tbl_selected <- gene_gff_tbl %>% 
+  dplyr::select(seqnames, start, end, type, ID)
 # Read in file with gene description 
 go_csv = read_csv('data/Icerya_purchasi_DTOL_augustus.hints.interproscan.csv.txt') %>%
   mutate(Alias = sub(".t.", "", Alias))
@@ -217,7 +220,7 @@ gene_gff_tbl_counted_filtered <- gene_gff_tbl_counted_filtered %>%
 # and adds the correct bin_name column to our dataframe
 GENE_counted <- gene_gff_tbl_counted_filtered %>%
   filter(grepl('gene', type)) %>%
-  rename(Count = Total)
+  dplyr::rename(Count = Total)
 
 
 #visualise spread of Gene count 
