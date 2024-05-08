@@ -18,9 +18,11 @@ divergence_eg_gff <- read_gff("data/icerya_purchasi.filteredRepeats.divergence.g
   mutate(type = as.character(type)) %>%
   mutate(type = sub("-.*", "", type)) %>%
   filter(!is.na(KIMURA80))
+# Convert our data into tibble for data manipulation
+divergence_eg_gff <- as_tibble(divergence_eg_gff)
 # Correct the subfamily 'Penelope' (within PLE) that is miscategorised as LINE by RepeatMasker
 # Rename Penelope to move to group PLE 
-eg_gff <- eg_gff_tbl %>%
+divergence_eg_gff <- divergence_eg_gff %>%
   mutate(type = sub('LINE/Penelope','PLE/Penelope', type))
 # Remove '/' from repeat names
 divergence_eg_tes_gff <- divergence_eg_gff %>%
