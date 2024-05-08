@@ -30,7 +30,6 @@ This script must be run last on ´R´, as requires all code from three previous 
 # Programmes Used
 - EarlGrey
 - AUGUSTUS
-- EMBOSS
 ### R packages:
 - tidyverse
 - RepeatMasker
