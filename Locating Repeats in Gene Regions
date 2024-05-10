@@ -1,16 +1,16 @@
 # load required package
 library(lme4)
+library(lmerTest)
 
 # combine all our data into one dataframe:
 # bin, GC content, Gene count and counts of each TE type into one tibble
-final_dataframe <- tibble(Bin = character(), GC_content = integer(), Gene_density = integer(),
+final_dataframe <- tibble(bin_name = character(), GC_content = integer(), Gene_density = integer(),
                           DNA = integer(), LINE = integer(), LTR = integer(), 
                           PLE = integer(), RC = integer(), 
                           SINE = integer(), Unknown = integer())
 
-# first create dataframe with just TE types which we will join to GC
-# using repeat counts from our first script 
-final_dataframe <- tibble(bin_name = bins,
+# input our data into each column 
+final_dataframe <- tibble(bin_name = bins$bin_name,
                           GC_content = GC_content$GC_content,
                           Gene = GENE_counted$Count,
                           DNA = DNA_counted$Total,
@@ -140,12 +140,11 @@ combined_counts <- gene_counts %>%
   mutate(GC_content = as.numeric(GC_content), count = as.numeric(count))
 # change tibble to table
 combined_counts <- as.data.frame(combined_counts)
-# our generalised linear model
+# our glm
 str(combined_counts) # check we have converted our variables correctly to numeric and/or factor
 fixed_model <- lmer(count ~ type + Gene + GC_content + Gene:type + GC_content:type + (1|bin_name), data = combined_counts)
 summary(fixed_model)
 anova(fixed_model)
-
 
 
 
@@ -234,13 +233,13 @@ repeat_ranges <- eg_gff_known %>%
 repeat_ranges_coord <- repeat_ranges %>%
   as_tibble() %>%
   dplyr::select(seqnames, start, end, repeat_type, KIMURA80, repeat_number) %>%
-  rename(repeat_start = start, repeat_end = end) %>%
+  dplyr::rename(repeat_start = start, repeat_end = end) %>%
   as_tibble() 
 # create tibble of just the upstream ranges
 upstream_ranges_coord <- upstream_ranges %>%
   as_tibble() %>% 
   dplyr::select(seqnames, start, end, ID) %>%
-  rename(upstream_start = start, upstream_end = end) %>%
+  dplyr::rename(upstream_start = start, upstream_end = end) %>%
   as_tibble()
 # merge overlapping genes with repeats 
 overlapping_ranges1 <- plyranges::join_overlap_inner(repeat_ranges, nearest_upstream) %>%
@@ -255,13 +254,13 @@ overlapping_ranges2 <- plyranges::join_overlap_inner(nearest_upstream, repeat_ra
 # eg, gene_ID, repeat_type etc...
 overlapping_ranges1_selected <- overlapping_ranges1 %>%
   as_tibble() %>%
-  rename(repeat_start = start, repeat_end = end) %>%
+  dplyr::rename(repeat_start = start, repeat_end = end) %>%
   mutate(join = paste0(repeat_number, '___', gene_number)) %>%
   dplyr::select(seqnames, repeat_start, repeat_end, repeat_type, repeat_number, join)
 
 overlapping_ranges2_selected <- overlapping_ranges2 %>%
   as_tibble() %>%
-  rename(gene_start = start, gene_end = end) %>%
+  dplyr::rename(gene_start = start, gene_end = end) %>%
   mutate(join = paste0(repeat_number, '___', gene_number)) %>%
   dplyr::select(gene_start, gene_end, gene_ID, gene_number, join) 
 
@@ -412,4 +411,5 @@ old_introns_divergence_intersect <- plyranges::join_overlap_intersect(x = intron
 
 # within upstream regions
 old_upstream_divergence_intersect <- plyranges::join_overlap_intersect(x=nearest_upstream, y = old_insertions)
+
 
