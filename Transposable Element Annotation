@@ -8,6 +8,7 @@ if (!require("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install("BSgenome")
 
+
 # Load in repeat information from EarlGrey
 eg_gff <- read_gff('data/icerya_purchasi.filteredRepeats.divergence.gff') %>%
   mutate(type = as.character(type)) %>%
@@ -18,10 +19,10 @@ eg_gff <- read_gff('data/icerya_purchasi.filteredRepeats.divergence.gff') %>%
   as_granges()
 # Convert our data into tibble for data manipulation
 eg_gff_tbl <- as_tibble(eg_gff)
-# Correct the subfamily 'Penelope' (within PLE) as it is miscategorised as LINE by RepeatMasker
+# Correct the superfamily 'Penelope' (within PLE) as it is miscategorised as LINE by RepeatMasker
 # Rename Penelope to move to group PLE 
 eg_gff <- eg_gff_tbl %>%
-mutate(type = sub('LINE/Penelope','PLE/Penelope', type))
+  mutate(type = sub('LINE/Penelope','PLE/Penelope', type))
 # Get number of repeats characterised by EarlGrey
 nrow(eg_gff) # 1078807
 # Estimate percentage of repeat elements across entire genome
@@ -206,7 +207,7 @@ for_plotting_DNA = base::unique(eg_gff_tbl_grouped_DNA) %>%
 plot_DNA <- ggplot(for_plotting_DNA, mapping = aes(x = bin_start, y = bin_total, fill = type)) + 
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~seqnames, ncol = 1) + 
-  labs(fill = 'Subfamily')
+  labs(fill = 'Superfamily')
 # Label x and y axis, change font size and theme
 plot_DNA <- plot_DNA + xlab('Chromosome Position') + ylab('Frequency')
 # Change text size and fix legend
@@ -237,7 +238,7 @@ for_plotting_line = base::unique(eg_gff_tbl_grouped_line) %>%
 plot_line <- ggplot(for_plotting_line, mapping = aes(x = bin_start, y = bin_total, fill = type)) + 
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~seqnames, ncol = 1) + 
-  labs(fill = 'Subfamily')
+  labs(fill = 'Superfamily')
 #label x and y axis, change font size and theme
 plot_line <- plot_line + xlab('Chromosome Position') + ylab('Frequency')
 # Change text size and fix legend
@@ -269,7 +270,7 @@ for_plotting_LTR = base::unique(eg_gff_tbl_grouped_LTR) %>%
 plot_LTR <- ggplot(for_plotting_LTR, mapping = aes(x = bin_start, y = bin_total, fill = type)) + 
   geom_bar(stat = "identity", position = "stack") +
   facet_wrap(~seqnames, ncol = 1) +
-  labs(fill = 'Subfamily')
+  labs(fill = 'Superfamily')
 # Label x and y axis, change font size and theme
 plot_LTR <- plot_LTR + xlab('Chromosome Position') + ylab('Frequency')
 # Change text size and fix legend
@@ -422,6 +423,9 @@ sum(Unknown_counted$Total) #425434
 # sum of the total of all repeat types 
 sum(170889 + 402608 + 11535 + 612 + 61589 + 6754 + 425434) #1079421
 nrow(eg_gff_tbl_binned_for_counting) #1079421
+
+
+
 
 
 
