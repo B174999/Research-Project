@@ -20,7 +20,7 @@ divergence_eg_gff <- read_gff("data/icerya_purchasi.filteredRepeats.divergence.g
   filter(!is.na(KIMURA80))
 # Convert our data into tibble for data manipulation
 divergence_eg_gff <- as_tibble(divergence_eg_gff)
-# Correct the subfamily 'Penelope' (within PLE) that is miscategorised as LINE by RepeatMasker
+# Correct the superfamily 'Penelope' (within PLE) that is miscategorised as LINE by RepeatMasker
 # Rename Penelope to move to group PLE 
 divergence_eg_gff <- divergence_eg_gff %>%
   mutate(type = sub('LINE/Penelope','PLE/Penelope', type))
@@ -106,7 +106,7 @@ divergence_eg_families_for_plot <- divergence_eg_gff %>%
 kimura_DNA_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "DNA",], # here's where you filter for repeat subclass
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
@@ -120,7 +120,7 @@ kimura_DNA_plot
 kimura_LINE_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "LINE",],
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
@@ -134,7 +134,7 @@ kimura_LINE_plot
 kimura_LTR_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "LTR",], 
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
@@ -148,7 +148,7 @@ kimura_LTR_plot
 kimura_PLE_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "PLE",],
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
@@ -164,7 +164,7 @@ kimura_RC_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "RC",], 
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
                      expand = c(0,0), name = "Kimura 2-Parameter Distance") +
@@ -178,7 +178,7 @@ kimura_SINE_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "SINE",], 
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
                      expand = c(0,0), name = "Kimura 2-Parameter Distance") +
@@ -191,7 +191,7 @@ kimura_SINE_plot
 kimura_Unknown_plot <-
   ggplot(divergence_eg_families_for_plot[divergence_eg_families_for_plot$subclass == "Unknown",], 
          aes(x = KIMURA80, y = KIMURA_SUM, fill = family)) +
-  labs(fill = 'Subfamily') + 
+  labs(fill = 'Superfamily') + 
   geom_histogram(stat = "identity", position = "stack", width = 0.01) +
   scale_y_continuous(name = "Number of basepairs") +
   scale_x_continuous(limits = c(-0.01, 0.51),
@@ -214,3 +214,5 @@ recent_insertions <- divergence_eg_gff %>%
   dplyr::select(seqnames, start, end, width, type, KIMURA80) %>%
   as_granges() %>%
   filter(KIMURA80 <=0.03) 
+
+
